@@ -10,30 +10,24 @@ connectDB();
 
 const app = express();
 
-// ── Security ──
-app.use(helmet());
-
-// ── CORS — multiple origins support karta hai ──
-const allowedOrigins = [
-  process.env.CLIENT_URL,
-  "http://localhost:3000",
-  "http://localhost:5173",
-].filter(Boolean); // removes undefined/null values
-
+// ✅ CORS — helmet se PEHLE aana chahiye
 app.use(cors({
-  origin: (origin, callback) => {
-    // allow requests with no origin (mobile apps, curl, Thunder Client)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    return callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
+  origin: "*",           // sabse pehle * se test karte hain
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false,    // * ke saath credentials false hona chahiye
 }));
 
+// ✅ OPTIONS preflight — har route ke liye
+app.options("*", cors());
+
+app.use(helmet({
+  crossOriginResourcePolicy: false,  // helmet CORS block na kare
+}));
 app.use(morgan("dev"));
 app.use(express.json());
 
-// ── Root route — Railway health check + browser test ──
+// ── Root route ──
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -49,7 +43,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// ── Health check ──
 app.get("/api/health", (req, res) =>
   res.json({ success: true, message: "Server running ✅" })
 );
@@ -61,8 +54,8 @@ const projectRoutes = require("./routes/projectRoutes");
 // ── API Routes ──
 app.use("/api/auth",                      require("./routes/authRoutes"));
 app.use("/api/projects",                  projectRoutes);
-app.use("/api/projects/:projectId/tasks", taskRoutes);   // nested
-app.use("/api/tasks",                     taskRoutes);   // flat
+app.use("/api/projects/:projectId/tasks", taskRoutes);
+app.use("/api/tasks",                     taskRoutes);
 app.use("/api/dashboard",                 require("./routes/dashboardRoutes"));
 
 // ── 404 Handler ──
